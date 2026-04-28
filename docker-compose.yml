@@ -1,0 +1,34 @@
+services:
+  app:
+    build: .
+    container_name: flowtrack_app
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/flowtrack
+      - JWT_SECRET=flowtrack-secret-key-2024
+      - NODE_ENV=production
+      - HELP_DESK_BOT_TOKEN=8459408556:AAGJkSDFFLYQudt4KZqoPK_ONvV65pnTYYs
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+  db:
+    image: postgres:15
+    container_name: flowtrack_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: flowtrack
+    volumes:
+      - flowtrack_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  flowtrack_data:

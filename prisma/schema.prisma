@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime     @default(now())
+  memberships  Membership[]
+  assignedTasks Task[]      @relation("Assignee")
+  reportedTasks Task[]     @relation("Reporter")
+  activities   ActivityLog[]
+}
+
+model Project {
+  id          String       @id @default(uuid())
+  name        String
+  description String       @default("")
+  createdAt   DateTime     @default(now())
+  memberships Membership[]
+  boards      Board[]
+  sprints     Sprint[]
+  labels      Label[]
+}
+
+model Membership {
+  id        String  @id @default(uuid())
+  userId    String
+  projectId String
+  role      String  @default("member")
+  user      User    @relation(fields: [userId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
+  @@unique([userId, projectId])
+}
+
+model Board {
+  id        String   @id @default(uuid())
+  projectId String
+  name      String
+  type      String   @default("kanban")
+  columns   Column[]
+  project   Project  @relation(fields: [projectId], references: [id])
+}
+
+model Column {
+  id      String  @id @default(uuid())
+  boardId String
+  name    String
+  order   Int     @default(0)
+  tasks   Task[]
+  board   Board   @relation(fields: [boardId], references: [id])
+}
+
+model Task {
+  id               String    @id @default(uuid())
+  title            String
+  description      String    @default("")
+  priority         String    @default("medium")
+  columnId         String
+  assigneeId       String?
+  reporterId       String?
+  reporterChatId   String?   @default("")
+  reporterPlatform String?   @default("telegram")
+  reporterName     String?   @default("")
+  dueDate          DateTime?
+  sprintId         String?
+  order            Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  column           Column    @relation(fields: [columnId], references: [id])
+  assignee         User?     @relation("Assignee", fields: [assigneeId], references: [id])
+  reporter         User?     @relation("Reporter", fields: [reporterId], references: [id])
+  sprint           Sprint?   @relation(fields: [sprintId], references: [id])
+  comments         Comment[]
+  labels           TaskLabel[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  taskId    String
+  userId    String
+  userName  String   @default("")
+  content   String
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id])
+}
+
+model Label {
+  id        String      @id @default(uuid())
+  name      String
+  color     String      @default("#6B7280")
+  projectId String
+  tasks     TaskLabel[]
+  project   Project     @relation(fields: [projectId], references: [id])
+}
+
+model TaskLabel {
+  taskId  String
+  labelId String
+  task    Task  @relation(fields: [taskId], references: [id])
+  label   Label @relation(fields: [labelId], references: [id])
+  @@id([taskId, labelId])
+}
+
+model Sprint {
+  id        String    @id @default(uuid())
+  projectId String
+  name      String
+  status    String    @default("planned")
+  startDate DateTime?
+  endDate   DateTime?
+  tasks     Task[]
+  project   Project   @relation(fields: [projectId], references: [id])
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  userId     String
+  userName   String   @default("")
+  actionType String
+  entityType String
+  entityId   String
+  metadata   String   @default("{}")
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model AutomationRule {
+  id        String  @id @default(uuid())
+  projectId String
+  trigger   String
+  condition String  @default("{}")
+  action    String  @default("{}")
+  enabled   Boolean @default(true)
+}

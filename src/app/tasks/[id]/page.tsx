@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
-interface Task { id: string; title: string; description: string; priority: string; order: number; assignee?: { id: string; name: string; email: string } | null; reporter?: { id: string; name: string } | null; reporterChatId?: string; reporterName?: string; reporterPlatform?: string; column?: { id: string; name: string }; comments: { id: string; content: string; userName: string; createdAt: string }[]; labels: { label: { name: string; color: string } }[]; createdAt: string; updatedAt: string }
+interface Task { id: string; title: string; description: string; priority: string; order: number; assignee?: { id: string; name: string; email: string } | null; reporter?: { id: string; name: string } | null; reporterChatId?: string; reporterName?: string; reporterPlatform?: string; column?: { id: string; name: string; board?: { columns?: { id: string; name: string }[], project?: { memberships?: { user: { id: string; name: string; email: string } }[] } } }; comments: { id: string; content: string; userName: string; createdAt: string }[]; labels: { label: { name: string; color: string } }[]; createdAt: string; updatedAt: string }
 
 export default function TaskPage() {
   const router = useRouter();
@@ -42,6 +42,15 @@ export default function TaskPage() {
     fetchTask();
   };
 
+  const updateTaskField = async (field: string, value: string | null) => {
+    await fetch(`/api/tasks/${taskId}`, { 
+      method: 'PATCH', 
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, 
+      body: JSON.stringify({ [field]: value }) 
+    });
+    fetchTask();
+  };
+
   const priorityColor: Record<string, string> = { critical: 'text-red-500 bg-red-50', high: 'text-orange-500 bg-orange-50', medium: 'text-yellow-600 bg-yellow-50', low: 'text-green-500 bg-green-50' };
 
   if (!task) return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>;
@@ -77,13 +86,61 @@ export default function TaskPage() {
             )}
             {!editing && <button onClick={() => setEditing(true)} className="text-indigo-500 text-sm hover:underline">Edit</button>}
           </div>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <div className="flex items-center gap-1"><span className="text-gray-400">Status:</span><span className="font-medium">{task.column?.name}</span></div>
-            <div className="flex items-center gap-1"><span className="text-gray-400">Priority:</span><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityColor[task.priority] || ''}`}>{task.priority}</span></div>
-            {task.assignee && <div className="flex items-center gap-1"><span className="text-gray-400">Assignee:</span><span className="font-medium">{task.assignee.name}</span></div>}
-            {task.reporter && <div className="flex items-center gap-1"><span className="text-gray-400">Reporter:</span><span>{task.reporter.name}</span></div>}
-            {task.reporterChatId && <div className="flex items-center gap-1"><span className="text-gray-400">From:</span><span className="text-blue-500">{task.reporterName || task.reporterChatId} ({task.reporterPlatform})</span></div>}
-            <div className="text-gray-400">Created {new Date(task.createdAt).toLocaleDateString()}</div>
+          <div className="flex flex-wrap items-center gap-4 text-sm mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-400">Status:</span>
+              <select 
+                value={task.column?.id} 
+                onChange={(e) => updateTaskField('columnId', e.target.value)}
+                className="bg-transparent font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded p-1"
+              >
+                {task.column?.board?.columns?.map(col => (
+                  <option key={col.id} value={col.id}>{col.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-gray-400">Priority:</span>
+              <select 
+                value={task.priority} 
+                onChange={(e) => updateTaskField('priority', e.target.value)}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 border-none cursor-pointer ${priorityColor[task.priority] || ''}`}
+              >
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="critical">critical</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-gray-400">Assignee:</span>
+              <select 
+                value={task.assignee?.id || ''} 
+                onChange={(e) => updateTaskField('assigneeId', e.target.value || null)}
+                className="bg-transparent font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded p-1"
+              >
+                <option value="">Unassigned</option>
+                {task.column?.board?.project?.memberships?.map(m => (
+                  <option key={m.user.id} value={m.user.id}>{m.user.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {task.reporter && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400">Reporter:</span>
+                <span>{task.reporter.name}</span>
+              </div>
+            )}
+            {task.reporterChatId && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400">From:</span>
+                <span className="text-blue-500">{task.reporterName || task.reporterChatId} ({task.reporterPlatform})</span>
+              </div>
+            )}
+            <div className="text-gray-400 ml-auto">Created {new Date(task.createdAt).toLocaleDateString()}</div>
           </div>
         </div>
 

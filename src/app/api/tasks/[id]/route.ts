@@ -17,7 +17,20 @@ export async function GET(
       include: {
         assignee: { select: { id: true, name: true, email: true } },
         reporter: { select: { id: true, name: true } },
-        column: true,
+        column: { 
+          include: { 
+            board: { 
+              include: { 
+                columns: true,
+                project: { 
+                  include: { 
+                    memberships: { include: { user: { select: { id: true, name: true, email: true } } } } 
+                  } 
+                } 
+              } 
+            } 
+          } 
+        },
         comments: { orderBy: { createdAt: 'desc' } },
         labels: { include: { label: true } },
         sprint: true,
@@ -53,6 +66,7 @@ export async function PATCH(
       data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
     }
     if (body.order !== undefined) data.order = body.order;
+    if (body.reporterNotified !== undefined) data.reporterNotified = body.reporterNotified;
 
     const task = await prisma.task.update({
       where: { id: params.id },

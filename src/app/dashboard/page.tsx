@@ -8,6 +8,7 @@ interface Project { id: string; name: string; description: string; createdAt: st
 export default function DashboardPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
@@ -18,10 +19,15 @@ export default function DashboardPage() {
     const u = localStorage.getItem('user');
     if (!token) { router.push('/login'); return; }
     if (u) setUser(JSON.parse(u));
-    fetch('/api/projects', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(d => { setProjects(d.projects || []); setLoading(false); })
-      .catch(() => { router.push('/login'); });
+    
+    Promise.all([
+      fetch('/api/projects', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch('/api/tasks', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
+    ]).then(([projData, taskData]) => {
+      setProjects(projData.projects || []);
+      setTasks(taskData.tasks || []);
+      setLoading(false);
+    }).catch(() => { router.push('/login'); });
   }, [router]);
 
   const createProject = async (e: React.FormEvent) => {
@@ -50,9 +56,38 @@ export default function DashboardPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Projects</h1>
-            <p className="text-gray-500 mt-1">{projects.length} projects</p>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="text-gray-500 mt-1">Welcome back, {user?.name}</p>
           </div>
+        </div>
+
+        {tasks.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold mb-4">My Assigned Tasks</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {tasks.map(t => (
+                <Link key={t.id} href={`/tasks/${t.id}`} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 hover:shadow-lg hover:-translate-y-1 transition-all group">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-lg group-hover:text-indigo-500 transition">{t.title}</h3>
+                    <span className={`text-xs px-2 py-1 rounded-full ${t.priority === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : t.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
+                      {t.priority}
+                    </span>
+                  </div>
+                  {t.column?.board?.project?.name && (
+                    <p className="text-sm text-gray-500 mb-2">Project: {t.column.board.project.name}</p>
+                  )}
+                  {t.dueDate && (
+                    <p className="text-xs text-gray-400">Due: {new Date(t.dueDate).toLocaleDateString()}</p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-4">Projects</h2>
+          <p className="text-gray-500 mb-4">{projects.length} projects</p>
         </div>
         <form onSubmit={createProject} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 mb-8">
           <h2 className="font-semibold mb-4">New Project</h2>

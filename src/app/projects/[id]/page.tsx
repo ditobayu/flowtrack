@@ -18,6 +18,8 @@ export default function ProjectPage() {
   const [dragTask, setDragTask] = useState<string | null>(null);
   const [dragCol, setDragCol] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [myTasksOnly, setMyTasksOnly] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
@@ -31,6 +33,12 @@ export default function ProjectPage() {
 
   useEffect(() => {
     if (!token) { router.push('/login'); return; }
+    
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      setCurrentUser(JSON.parse(userStr));
+    }
+    
     fetchBoard();
   }, [token, router, fetchBoard]);
 
@@ -59,6 +67,8 @@ export default function ProjectPage() {
     setDragCol(null);
   };
 
+  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
   const priorityColor: Record<string, string> = { critical: 'bg-red-500', high: 'bg-orange-500', medium: 'bg-yellow-500', low: 'bg-green-500' };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>;
@@ -72,7 +82,16 @@ export default function ProjectPage() {
             <span className="text-gray-400">/</span>
             <span className="font-medium">{projectName}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={myTasksOnly} 
+                onChange={(e) => setMyTasksOnly(e.target.checked)} 
+                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" 
+              />
+              My Tasks
+            </label>
             <span className="text-xs text-gray-400">Drag tasks to move</span>
           </div>
         </div>
@@ -87,23 +106,33 @@ export default function ProjectPage() {
                 <div className="bg-gray-200/50 dark:bg-gray-900/50 rounded-2xl p-3">
                   <div className="flex items-center justify-between mb-3 px-1">
                     <h3 className="font-semibold text-sm">{col.name}</h3>
-                    <span className="text-xs text-gray-400">{col.tasks.length}</span>
+                    <span className="text-xs font-medium bg-gray-300 dark:bg-gray-700 px-2 py-0.5 rounded-full">{col.tasks.length}</span>
                   </div>
                   <div className="space-y-2 min-h-[100px]">
-                    {col.tasks.map(task => (
+                    {col.tasks.filter(t => !myTasksOnly || t.assignee?.id === currentUser?.id).map(task => (
                       <div key={task.id} draggable
                         onDragStart={() => { setDragTask(task.id); setDragCol(col.id); }}
-                        className="bg-white dark:bg-gray-900 rounded-xl p-3 shadow-sm border border-gray-200 dark:border-gray-800 cursor-grab active:cursor-grabbing hover:shadow-md transition group">
+                        className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200 dark:border-gray-700 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-indigo-300 transition group flex flex-col gap-2">
                         <div className="flex items-start justify-between gap-2">
                           <Link href={`/tasks/${task.id}`} className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{task.title}</p>
+                            <p className="font-medium text-sm leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{task.title}</p>
                           </Link>
-                          <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition text-xs">✕</button>
+                          <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition text-xs flex-shrink-0 rounded bg-gray-100 dark:bg-gray-700 w-5 h-5 flex items-center justify-center">✕</button>
                         </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className={`w-2 h-2 rounded-full ${priorityColor[task.priority] || 'bg-gray-400'}`} />
-                          {task.assignee && <span className="text-xs text-gray-400">{task.assignee.name}</span>}
-                          {task.labels?.map((l, i) => <span key={i} className="text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: l.label.color + '20', color: l.label.color }}>{l.label.name}</span>)}
+                        <div className="flex items-center justify-between mt-1">
+                          <div className="flex flex-wrap items-center gap-1 flex-1">
+                            <span className={`w-2 h-2 rounded-full ${priorityColor[task.priority] || 'bg-gray-400'} flex-shrink-0`} title={`Priority: ${task.priority}`} />
+                            {task.labels?.map((l, i) => (
+                              <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full font-medium truncate max-w-[80px]" style={{ backgroundColor: l.label.color + '20', color: l.label.color }}>
+                                {l.label.name}
+                              </span>
+                            ))}
+                          </div>
+                          {task.assignee && (
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold flex-shrink-0 ml-2 border border-white dark:border-gray-800 shadow-sm" title={`Assigned to ${task.assignee.name}`}>
+                              {getInitials(task.assignee.name)}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

@@ -1,0 +1,1 @@
+ALTER TABLE "Task" ADD COLUMN "reporterNotified" BOOLEAN NOT NULL DEFAULT false;

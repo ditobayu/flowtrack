@@ -69,6 +69,7 @@ model Task {
   reporterChatId   String?   @default("")
   reporterPlatform String?   @default("telegram")
   reporterName     String?   @default("")
+  reporterNotified Boolean   @default(false)
   dueDate          DateTime?
   sprintId         String?
   order            Int       @default(0)

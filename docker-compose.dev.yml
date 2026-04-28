@@ -1,0 +1,40 @@
+services:
+  app:
+    image: node:18-bullseye
+    container_name: flowtrack_dev_app
+    working_dir: /app
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/flowtrack
+      - JWT_SECRET=flowtrack-secret-key-2024
+      - NODE_ENV=development
+      - HELP_DESK_BOT_TOKEN=8459408556:AAGJkSDFFLYQudt4KZqoPK_ONvV65pnTYYs
+    volumes:
+      - .:/app
+      - flowtrack_dev_node_modules:/app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "npm install && npx prisma generate && npx prisma migrate dev && npm run dev"
+
+  db:
+    image: postgres:15
+    container_name: flowtrack_dev_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: flowtrack
+    volumes:
+      - flowtrack_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5433:5432"
+
+volumes:
+  flowtrack_dev_data:
+  flowtrack_dev_node_modules:

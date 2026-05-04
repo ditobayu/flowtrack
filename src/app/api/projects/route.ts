@@ -4,18 +4,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    verifyToken(auth);
     const projects = await prisma.project.findMany({
       include: { _count: { select: { boards: true } } },
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json({ projects });
   } catch (e: any) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
 

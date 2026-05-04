@@ -111,8 +111,6 @@ export async function PATCH(
         const chatId = reporterChatId.includes(':') ? reporterChatId.split(':')[1] : reporterChatId;
         const token = process.env.HELP_DESK_BOT_TOKEN;
         const text = `✅ Issue #${task.id} (${task.title}) sudah selesai. Terima kasih!`;
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const fetch = require('node-fetch');
         await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

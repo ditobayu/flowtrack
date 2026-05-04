@@ -1,16 +1,10 @@
 import { prisma } from '@/lib/prisma';
-import { verifyToken } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 // POST /api/issues — Create issue from helpdesk
 // Body: { projectIdentifier, title, description, priority, reporterChatId, reporterName, reporterUsername, reporterPlatform }
 export async function POST(req: NextRequest) {
   try {
-    const auth = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const decoded = verifyToken(auth);
     const body = await req.json();
     const { projectIdentifier, title, description, priority, reporterChatId, reporterName, reporterUsername, reporterPlatform } = body;
 
@@ -93,23 +87,6 @@ export async function POST(req: NextRequest) {
       },
       include: {
         column: true,
-      },
-    });
-
-    await prisma.activityLog.create({
-      data: {
-        userId: decoded.userId,
-        userName: decoded.name || 'Helpdesk',
-        actionType: 'issue_created',
-        entityType: 'task',
-        entityId: task.id,
-        metadata: JSON.stringify({
-          title,
-          reporterChatId: String(reporterChatId),
-          reporterName,
-          reporterUsername,
-          projectId: project.id,
-        }),
       },
     });
 

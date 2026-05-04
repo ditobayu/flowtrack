@@ -6,6 +6,12 @@ export async function GET(_req: NextRequest) {
     const tasks = await prisma.task.findMany({
       where: {
         reporterNotified: false,
+        column: {
+          name: {
+            equals: 'done',
+            mode: 'insensitive',
+          },
+        },
       },
       include: {
         assignee: { select: { id: true, name: true, email: true } },

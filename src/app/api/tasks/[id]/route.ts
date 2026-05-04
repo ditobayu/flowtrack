@@ -16,7 +16,7 @@ export async function GET(
       where: { id: params.id },
       include: {
         assignee: { select: { id: true, name: true, email: true } },
-        reporter: { select: { id: true, name: true } },
+        reporter: { select: { id: true, name: true, username: true, platform: true, chatId: true } },
         column: { 
           include: { 
             board: { 
@@ -73,6 +73,7 @@ export async function PATCH(
       data,
       include: {
         assignee: { select: { id: true, name: true } },
+        reporter: { select: { id: true, name: true, username: true, platform: true, chatId: true } },
         column: true,
       },
     });
@@ -94,7 +95,10 @@ export async function PATCH(
 
     // Check if moved to "Done" column and has reporterChatId → trigger notification info
     let notifyRequired = false;
-    if (body.columnId && task.reporterChatId) {
+    const reporterChatId = task.reporter?.chatId || null;
+    const reporterPlatform = task.reporter?.platform || null;
+    const canNotifyReporter = Boolean(reporterChatId && reporterPlatform && reporterPlatform !== 'internal');
+    if (body.columnId && canNotifyReporter) {
       const doneColumn = await prisma.column.findUnique({ where: { id: body.columnId } });
       if (doneColumn && doneColumn.name.toLowerCase() === 'done') {
         notifyRequired = true;
@@ -102,9 +106,9 @@ export async function PATCH(
     }
 
     // If we need to notify the reporter via Telegram, send the message now
-    if (notifyRequired && task.reporterChatId) {
+    if (notifyRequired && reporterPlatform === 'telegram' && reporterChatId) {
       try {
-        const chatId = task.reporterChatId.split(':')[1];
+        const chatId = reporterChatId.includes(':') ? reporterChatId.split(':')[1] : reporterChatId;
         const token = process.env.HELP_DESK_BOT_TOKEN;
         const text = `✅ Issue #${task.id} (${task.title}) sudah selesai. Terima kasih!`;
         // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -124,9 +128,10 @@ export async function PATCH(
       notifyInfo: notifyRequired ? {
         taskId: task.id,
         title: task.title,
-        reporterChatId: task.reporterChatId,
-        reporterName: task.reporterName,
-        reporterPlatform: task.reporterPlatform,
+        reporterChatId: reporterChatId,
+        reporterName: task.reporter?.name || '',
+        reporterUsername: task.reporter?.username || '',
+        reporterPlatform: reporterPlatform,
       } : null,
     });
   } catch (e: any) {

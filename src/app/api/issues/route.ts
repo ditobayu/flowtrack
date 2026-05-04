@@ -3,7 +3,7 @@ import { verifyToken } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 // POST /api/issues — Create issue from helpdesk
-// Body: { projectIdentifier, title, description, priority, reporterChatId, reporterName, reporterPlatform }
+// Body: { projectIdentifier, title, description, priority, reporterChatId, reporterName, reporterUsername, reporterPlatform }
 export async function POST(req: NextRequest) {
   try {
     const auth = req.headers.get('authorization')?.replace('Bearer ', '');
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
     const decoded = verifyToken(auth);
     const body = await req.json();
-    const { projectIdentifier, title, description, priority, reporterChatId, reporterName, reporterPlatform } = body;
+    const { projectIdentifier, title, description, priority, reporterChatId, reporterName, reporterUsername, reporterPlatform } = body;
 
     if (!title) {
       return NextResponse.json({ error: 'Title required' }, { status: 400 });
@@ -20,6 +20,23 @@ export async function POST(req: NextRequest) {
     if (!reporterChatId) {
       return NextResponse.json({ error: 'reporterChatId required' }, { status: 400 });
     }
+
+    const resolvedPlatform = reporterPlatform || 'telegram';
+    const resolvedChatId = String(reporterChatId);
+    const reporterUpdate: Record<string, string> = { name: reporterName || '' };
+    if (reporterUsername !== undefined) {
+      reporterUpdate.username = reporterUsername || '';
+    }
+    const reporter = await prisma.reporter.upsert({
+      where: { platform_chatId: { platform: resolvedPlatform, chatId: resolvedChatId } },
+      update: reporterUpdate,
+      create: {
+        name: reporterName || '',
+        username: reporterUsername || '',
+        platform: resolvedPlatform,
+        chatId: resolvedChatId,
+      },
+    });
 
     // Find project by name or id
     let project = null;
@@ -71,10 +88,7 @@ export async function POST(req: NextRequest) {
         description: description || '',
         priority: priority || 'medium',
         columnId: targetColumnId,
-        reporterChatId: String(reporterChatId),
-        reporterName: reporterName || '',
-        reporterPlatform: reporterPlatform || 'telegram',
-        reporterId: decoded.userId,
+        reporterId: reporter.id,
         order: 0,
       },
       include: {
@@ -93,6 +107,7 @@ export async function POST(req: NextRequest) {
           title,
           reporterChatId: String(reporterChatId),
           reporterName,
+          reporterUsername,
           projectId: project.id,
         }),
       },

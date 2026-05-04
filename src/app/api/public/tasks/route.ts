@@ -6,6 +6,12 @@ export async function GET(_req: NextRequest) {
     const tasks = await prisma.task.findMany({
       where: {
         reporterNotified: false,
+        reporter: {
+          is: {
+            platform: { not: 'internal' },
+            chatId: { not: null },
+          },
+        },
         column: {
           name: {
             equals: 'done',
@@ -15,7 +21,7 @@ export async function GET(_req: NextRequest) {
       },
       include: {
         assignee: { select: { id: true, name: true, email: true } },
-        reporter: { select: { id: true, name: true, email: true } },
+        reporter: { select: { id: true, name: true, username: true, platform: true, chatId: true } },
         column: {
           include: {
             board: {

@@ -19,11 +19,16 @@ export async function GET(req: NextRequest) {
       const tasks = await prisma.task.findMany({
         where: {
           reporterNotified: isNotified,
-          reporterChatId: { not: '' },
+          reporter: {
+            is: {
+              chatId: { not: null },
+              platform: { not: 'internal' },
+            },
+          },
         },
         include: {
           assignee: { select: { id: true, name: true, email: true } },
-          reporter: { select: { id: true, name: true, email: true } },
+          reporter: { select: { id: true, name: true, username: true, platform: true, chatId: true } },
           column: {
             include: {
               board: {
@@ -74,6 +79,18 @@ export async function POST(req: NextRequest) {
     if (!title || !columnId) {
       return NextResponse.json({ error: 'Title and column required' }, { status: 400 });
     }
+    const internalChatId = `internal:${decoded.userId}`;
+    const internalUsername = decoded.email || decoded.name || decoded.userId || '';
+    const reporter = await prisma.reporter.upsert({
+      where: { platform_chatId: { platform: 'internal', chatId: internalChatId } },
+      update: { name: decoded.name || '', username: internalUsername },
+      create: {
+        name: decoded.name || '',
+        username: internalUsername,
+        platform: 'internal',
+        chatId: internalChatId,
+      },
+    });
     const maxOrder = await prisma.task.findFirst({
       where: { columnId },
       orderBy: { order: 'desc' },
@@ -86,7 +103,7 @@ export async function POST(req: NextRequest) {
         priority: priority || 'medium',
         columnId,
         assigneeId: assigneeId || null,
-        reporterId: decoded.userId,
+        reporterId: reporter.id,
         dueDate: dueDate ? new Date(dueDate) : null,
         order: (maxOrder?.order ?? -1) + 1,
       },

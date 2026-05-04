@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
-interface Task { id: string; title: string; description: string; priority: string; order: number; assignee?: { id: string; name: string; email: string } | null; reporter?: { id: string; name: string } | null; reporterChatId?: string; reporterName?: string; reporterPlatform?: string; column?: { id: string; name: string; board?: { columns?: { id: string; name: string }[], project?: { memberships?: { user: { id: string; name: string; email: string } }[] } } }; comments: { id: string; content: string; userName: string; createdAt: string }[]; labels: { label: { name: string; color: string } }[]; createdAt: string; updatedAt: string }
+interface Task { id: string; title: string; description: string; priority: string; order: number; assignee?: { id: string; name: string; email: string } | null; reporter?: { id: string; name: string; username?: string | null; platform?: string | null; chatId?: string | null } | null; column?: { id: string; name: string; board?: { columns?: { id: string; name: string }[], project?: { memberships?: { user: { id: string; name: string; email: string } }[] } } }; comments: { id: string; content: string; userName: string; createdAt: string }[]; labels: { label: { name: string; color: string } }[]; createdAt: string; updatedAt: string }
 
 export default function TaskPage() {
   const router = useRouter();
@@ -52,6 +52,9 @@ export default function TaskPage() {
   };
 
   const priorityColor: Record<string, string> = { critical: 'text-red-500 bg-red-50', high: 'text-orange-500 bg-orange-50', medium: 'text-yellow-600 bg-yellow-50', low: 'text-green-500 bg-green-50' };
+  const reporterDisplay = task?.reporter?.username
+    ? (task.reporter?.name ? `${task.reporter.name} (@${task.reporter.username})` : `@${task.reporter.username}`)
+    : (task?.reporter?.name || '');
 
   if (!task) return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>;
 
@@ -131,13 +134,13 @@ export default function TaskPage() {
             {task.reporter && (
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">Reporter:</span>
-                <span>{task.reporter.name}</span>
+                <span>{reporterDisplay}</span>
               </div>
             )}
-            {task.reporterChatId && (
+            {task.reporter?.platform && task.reporter.platform !== 'internal' && task.reporter.chatId && (
               <div className="flex items-center gap-2">
                 <span className="text-gray-400">From:</span>
-                <span className="text-blue-500">{task.reporterName || task.reporterChatId} ({task.reporterPlatform})</span>
+                <span className="text-blue-500">{task.reporter.username ? `@${task.reporter.username}` : (task.reporter.name || task.reporter.chatId)} ({task.reporter.platform})</span>
               </div>
             )}
             <div className="text-gray-400 ml-auto">Created {new Date(task.createdAt).toLocaleDateString()}</div>
